@@ -20,7 +20,9 @@ namespace Proyecto1
         private bool esperandoSegundoNumero = false; // true cuando ya hay operador y falta el 2do número
         private bool huboError = false;        // Para bloquear entradas cuando hay error
 
-        // DB esperada: PROYECTO1  |  Tabla: Registros(ID int identity, REGISTROS decimal(18,2))
+        // DB esperada:
+        // PROYECTO1 | Tabla: Registros
+        // Columnas: fecha date, ultima_operacion varchar(100), resultado float
         private string connectionString =
             @"Server=.\sqlexpress;Database=PROYECTO1;Trusted_Connection=True;";
 
@@ -94,7 +96,7 @@ namespace Proyecto1
 
         private bool TryLeerDisplay(out decimal valor)
         {
-            // Usamos cultura invariable para que el "." sea el separador decimal
+            // Uso cultura invariable para que el "." sea siempre el separador decimal
             return decimal.TryParse(
                 txtDisplay.Text,
                 NumberStyles.Any,
@@ -174,17 +176,31 @@ namespace Proyecto1
             }
         }
 
-        private void GuardarResultadoEnBD(decimal valor)
+        /// <summary>
+        /// Guarda en la base de datos:
+        /// - la fecha actual (solo fecha, sin hora)
+        /// - el texto de la última operación (lo que se muestra en txtDisplayFront)
+        /// - el resultado numérico
+        /// </summary>
+        private void GuardarResultadoEnBD(decimal valor, string descripcionOperacion)
         {
-            // Redondeamos a 2 decimales porque la columna es decimal(18,2)
-            decimal v = Math.Round(valor, 2);
+            // Redondeo a 2 decimales por comodidad (puedes quitarlo si no lo quieres)
+            decimal valorRedondeado = Math.Round(valor, 2);
+
+            // Solo la parte de fecha (sin hora)
+            DateTime fechaActual = DateTime.Now.Date;
 
             try
             {
                 using (SqlConnection cn = new SqlConnection(connectionString))
-                using (SqlCommand cmd = new SqlCommand("INSERT INTO Registros (REGISTROS) VALUES (@v)", cn))
+                using (SqlCommand cmd = new SqlCommand(
+                    "INSERT INTO Registros (fecha, ultima_operacion, resultado) " +
+                    "VALUES (@fecha, @ultima_operacion, @resultado)", cn))
                 {
-                    cmd.Parameters.AddWithValue("@v", v);
+                    cmd.Parameters.AddWithValue("@fecha", fechaActual);
+                    cmd.Parameters.AddWithValue("@ultima_operacion", descripcionOperacion);
+                    cmd.Parameters.AddWithValue("@resultado", valorRedondeado);
+
                     cn.Open();
                     cmd.ExecuteNonQuery();
                 }
@@ -255,7 +271,8 @@ namespace Proyecto1
             txtDisplayFront.Text = "√(" + x.ToString(CultureInfo.InvariantCulture) + ") =";
             txtDisplay.Text = resultado.ToString(CultureInfo.InvariantCulture);
 
-            GuardarResultadoEnBD(resultado);
+            // Guardo operación tal cual se ve en la pantalla frontal
+            GuardarResultadoEnBD(resultado, txtDisplayFront.Text);
             operador = "";
             esperandoSegundoNumero = false;
         }
@@ -269,7 +286,8 @@ namespace Proyecto1
             txtDisplayFront.Text = "(" + x.ToString(CultureInfo.InvariantCulture) + ")^2 =";
             txtDisplay.Text = resultado.ToString(CultureInfo.InvariantCulture);
 
-            GuardarResultadoEnBD(resultado);
+            // Guardo operación tal cual se ve en la pantalla frontal
+            GuardarResultadoEnBD(resultado, txtDisplayFront.Text);
             operador = "";
             esperandoSegundoNumero = false;
         }
@@ -306,7 +324,8 @@ namespace Proyecto1
 
             txtDisplay.Text = resultado.ToString(CultureInfo.InvariantCulture);
 
-            GuardarResultadoEnBD(resultado);
+            // Guardo operación tal cual se ve en la pantalla frontal
+            GuardarResultadoEnBD(resultado, txtDisplayFront.Text);
 
             // Dejar el resultado como nuevo primer número por si el usuario continúa
             primerNumero = resultado;
